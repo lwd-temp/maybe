@@ -1,4 +1,6 @@
 class PagesController < ApplicationController
+  layout "with_sidebar"
+
   include Filterable
 
   def dashboard
@@ -19,7 +21,7 @@ class PagesController < ApplicationController
 
     @accounts = Current.family.accounts
     @account_groups = @accounts.by_group(period: @period, currency: Current.family.currency)
-    @transactions = Current.family.transactions.limit(5).order(date: :desc)
+    @transaction_entries = Current.family.entries.account_transactions.limit(6).reverse_chronological
 
     # TODO: Placeholders for trendlines
     placeholder_series_data = 10.times.map do |i|
@@ -29,6 +31,7 @@ class PagesController < ApplicationController
   end
 
   def changelog
+    @releases_notes = Provider::Github.new.fetch_latest_releases_notes
   end
 
   def feedback

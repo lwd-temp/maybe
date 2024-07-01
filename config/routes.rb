@@ -21,28 +21,78 @@ Rails.application.routes.draw do
     resource :security, only: %i[show update]
   end
 
-  resources :transactions do
-    match "search" => "transactions#search", on: :collection, via: [ :get, :post ], as: :search
+  resources :imports, except: :show do
+    member do
+      get "load"
+      patch "load" => "imports#load_csv"
 
+      get "configure"
+      patch "configure" => "imports#update_mappings"
+
+      get "clean"
+      patch "clean" => "imports#update_csv"
+
+      get "confirm"
+      patch "confirm" => "imports#publish"
+    end
+  end
+
+  resources :tags, except: %i[ show destroy ] do
+    resources :deletions, only: %i[ new create ], module: :tag
+  end
+
+  namespace :category do
+    resource :dropdown, only: :show
+  end
+
+  resources :categories do
+    resources :deletions, only: %i[ new create ], module: :category
+  end
+
+  resources :merchants, only: %i[ index new create edit update destroy ]
+
+  namespace :account do
+    resources :transfers, only: %i[ new create destroy ]
+
+    namespace :transaction do
+      resources :rules, only: %i[ index ]
+    end
+  end
+
+  resources :accounts do
     collection do
-      scope module: :transactions do
-        resources :categories, as: :transaction_categories do
-          resources :deletions, only: %i[ new create ], module: :categories
-        end
+      get :summary
+      get :list
+    end
 
-        resources :rules, only: %i[ index ], as: :transaction_rules
-        resources :merchants, only: %i[ index new create edit update destroy ], as: :transaction_merchants
+    member do
+      post :sync
+    end
+
+    scope module: :account do
+      resource :logo, only: :show
+
+      resources :entries, except: :index do
+        collection do
+          get "transactions", as: :transaction
+          get "valuations", as: :valuation
+        end
       end
     end
   end
 
-  resources :accounts, shallow: true do
-    get :summary, on: :collection
-    get :list, on: :collection
-    post :sync, on: :member
-    resource :logo, only: %i[show], module: :accounts
-    resources :valuations
+  resources :transactions, only: %i[ index new create ] do
+    collection do
+      post "bulk_delete"
+      get "bulk_edit"
+      post "bulk_update"
+      post "mark_transfers"
+      post "unmark_transfers"
+      get "rules"
+    end
   end
+
+  resources :institutions, except: %i[ index show ]
 
   # For managing self-hosted upgrades and release notifications
   resources :upgrades, only: [] do

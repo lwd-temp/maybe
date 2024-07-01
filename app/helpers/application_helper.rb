@@ -20,21 +20,35 @@ module ApplicationHelper
     render partial: "shared/notification", locals: { type: options[:type], content: { body: content } }
   end
 
-  # Wrap view with <%= modal do %> ... <% end %> to have it open in a modal
-  # Make sure to add data-turbo-frame="modal" to the link/button that opens the modal
+  ##
+  # Helper to open a centered and overlayed modal with custom contents
+  #
+  # @example Basic usage
+  #   <%= modal classes: "custom-class" do %>
+  #     <div>Content here</div>
+  #   <% end %>
+  #
   def modal(options = {}, &block)
     content = capture &block
     render partial: "shared/modal", locals: { content:, classes: options[:classes] }
   end
 
+  ##
+  # Helper to open a drawer on the right side of the screen with custom contents
+  #
+  # @example Basic usage
+  #   <%= drawer do %>
+  #     <div>Content here</div>
+  #   <% end %>
+  #
+  def drawer(&block)
+    content = capture &block
+    render partial: "shared/drawer", locals: { content: content }
+  end
+
   def account_groups(period: nil)
     assets, liabilities = Current.family.accounts.by_group(currency: Current.family.currency, period: period || Period.last_30_days).values_at(:assets, :liabilities)
     [ assets.children, liabilities.children ].flatten
-  end
-
-  def sidebar_modal(&block)
-    content = capture &block
-    render partial: "shared/sidebar_modal", locals: { content: content }
   end
 
   def sidebar_link_to(name, path, options = {})
@@ -49,6 +63,25 @@ module ApplicationHelper
       concat(lucide_icon(options[:icon], class: "w-5 h-5")) if options[:icon]
       concat(name)
     end
+  end
+
+  def mixed_hex_styles(hex)
+    color = hex || "#1570EF" # blue-600
+
+    <<-STYLE.strip
+      background-color: color-mix(in srgb, #{color} 5%, white);
+      border-color: color-mix(in srgb, #{color} 10%, white);
+      color: #{color};
+    STYLE
+  end
+
+  def circle_logo(name, hex: nil, size: "md")
+    render partial: "shared/circle_logo", locals: { name: name, hex: hex, size: size }
+  end
+
+  def return_to_path(params, fallback = root_path)
+    uri = URI.parse(params[:return_to] || fallback)
+    uri.relative? ? uri.path : root_path
   end
 
   def trend_styles(trend)
@@ -102,5 +135,12 @@ module ApplicationHelper
     money = Money.new(number_or_money)
     options.reverse_merge!(money.default_format_options)
     ActiveSupport::NumberHelper.number_to_delimited(money.amount.round(options[:precision] || 0), { delimiter: options[:delimiter], separator: options[:separator] })
+  end
+
+  def totals_by_currency(collection:, money_method:, separator: " | ", negate: false)
+    collection.group_by(&:currency)
+              .transform_values { |item| negate ? item.sum(&money_method) * -1 : item.sum(&money_method) }
+              .map { |_currency, money| format_money(money) }
+              .join(separator)
   end
 end

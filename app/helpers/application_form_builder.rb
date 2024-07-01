@@ -25,7 +25,7 @@ class ApplicationFormBuilder < ActionView::Helpers::FormBuilder
   # See `Monetizable` concern, which adds a _money suffix to the attribute name
   # For a monetized field, the setter will always be the attribute name without the _money suffix
   def money_field(method, options = {})
-    money = @object.send(method)
+    money = @object && @object.respond_to?(method) ? @object.send(method) : nil
     raise ArgumentError, "The value of #{method} is not a Money object" unless money.is_a?(Money) || money.nil?
 
     money_amount_method = method.to_s.chomp("_money").to_sym
@@ -33,26 +33,28 @@ class ApplicationFormBuilder < ActionView::Helpers::FormBuilder
 
     readonly_currency = options[:readonly_currency] || false
 
-    currency = money&.currency || Money.default_currency
+    currency = money&.currency || Money::Currency.new(Current.family.currency)  || Money.default_currency
     default_options = {
       class: "form-field__input",
       value: money&.amount,
       "data-money-field-target" => "amount",
       placeholder: Money.new(0, currency).format,
+      min: -99999999999999,
+      max: 99999999999999,
       step: currency.step
     }
 
     merged_options = default_options.merge(options)
 
     grouped_options = currency_options_for_select
-    selected_currency = money&.currency&.iso_code
+    selected_currency = money&.currency&.iso_code || currency.iso_code
 
     @template.form_field_tag data: { controller: "money-field" } do
       (label(method, *label_args(options)).to_s if options[:label]) +
-      @template.tag.div(class: "flex items-center") do
-        number_field(money_amount_method, merged_options.except(:label)) +
-        grouped_select(money_currency_method, grouped_options, { selected: selected_currency, disabled: readonly_currency }, class: "ml-auto form-field__input w-fit pr-8", data: { "money-field-target" => "currency", action: "change->money-field#handleCurrencyChange" })
-      end
+        @template.tag.div(class: "flex items-center") do
+          number_field(money_amount_method, merged_options.except(:label)) +
+            grouped_select(money_currency_method, grouped_options, { selected: selected_currency, disabled: readonly_currency }, class: "ml-auto form-field__input w-fit pr-8", data: { "money-field-target" => "currency", action: "change->money-field#handleCurrencyChange" })
+        end
     end
   end
 
@@ -74,6 +76,20 @@ class ApplicationFormBuilder < ActionView::Helpers::FormBuilder
     end
   end
 
+  def currency_select(method, options = {}, html_options = {})
+    default_options = { class: "form-field__input" }
+    merged_options = default_options.merge(html_options)
+
+    choices = currency_options_for_select
+
+    return @template.grouped_collection_select(@object_name, method, choices, :last, :first, :last, :first, options, merged_options) unless options[:label]
+
+    @template.form_field_tag do
+      label(method, *label_args(options)) +
+        @template.grouped_collection_select(@object_name, method, choices, :last, :first, :last, :first, options, merged_options.except(:label))
+    end
+  end
+
   def select(method, choices, options = {}, html_options = {})
     default_options = { class: "form-field__input" }
     merged_options = default_options.merge(html_options)
@@ -82,7 +98,7 @@ class ApplicationFormBuilder < ActionView::Helpers::FormBuilder
 
     @template.form_field_tag do
       label(method, *label_args(options)) +
-      super(method, choices, options, merged_options.except(:label))
+        super(method, choices, options, merged_options.except(:label))
     end
   end
 
@@ -94,7 +110,7 @@ class ApplicationFormBuilder < ActionView::Helpers::FormBuilder
 
     @template.form_field_tag do
       label(method, *label_args(options)) +
-      super(method, collection, value_method, text_method, options, merged_options.except(:label))
+        super(method, collection, value_method, text_method, options, merged_options.except(:label))
     end
   end
 
@@ -107,27 +123,27 @@ class ApplicationFormBuilder < ActionView::Helpers::FormBuilder
 
   private
 
-  def currency_options_for_select
-    popular_currencies = Money::Currency.popular.map { |currency| [ currency.iso_code, currency.iso_code ] }
-    all_currencies = Money::Currency.all_instances.map { |currency| [ currency.iso_code, currency.iso_code ] }
-    all_other_currencies = all_currencies.reject { |c| popular_currencies.map(&:last).include?(c.last) }.sort_by(&:last)
+    def currency_options_for_select
+      popular_currencies = Money::Currency.popular.map { |currency| [ currency.iso_code, currency.iso_code ] }
+      all_currencies = Money::Currency.all_instances.map { |currency| [ currency.iso_code, currency.iso_code ] }
+      all_other_currencies = all_currencies.reject { |c| popular_currencies.map(&:last).include?(c.last) }.sort_by(&:last)
 
-    {
-      I18n.t("accounts.new.currency.popular") => popular_currencies,
-      I18n.t("accounts.new.currency.all_others") => all_other_currencies
-    }
-  end
-
-  def label_args(options)
-    case options[:label]
-    when Array
-      options[:label]
-    when String
-      [ options[:label], { class: "form-field__label" } ]
-    when Hash
-      [ nil, options[:label] ]
-    else
-      [ nil, { class: "form-field__label" } ]
+      {
+        I18n.t("accounts.new.currency.popular") => popular_currencies,
+        I18n.t("accounts.new.currency.all_others") => all_other_currencies
+      }
     end
-  end
+
+    def label_args(options)
+      case options[:label]
+      when Array
+        options[:label]
+      when String
+        [ options[:label], { class: "form-field__label" } ]
+      when Hash
+        [ nil, options[:label] ]
+      else
+        [ nil, { class: "form-field__label" } ]
+      end
+    end
 end

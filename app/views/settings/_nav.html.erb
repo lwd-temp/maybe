@@ -1,5 +1,5 @@
 <div class="flex items-center gap-1 mb-6">
-  <%= link_to root_path, class: "flex items-center gap-1 text-gray-900 font-medium text-sm" do %>
+  <%= link_to return_to_path(params), class: "flex items-center gap-1 text-gray-900 font-medium text-sm" do %>
     <%= lucide_icon "chevron-left", class: "w-5 h-5 text-gray-500" %>
     <span>Back</span>
   <% end %>
@@ -47,13 +47,19 @@
   </div>
   <ul class="space-y-1">
     <li>
-      <%= sidebar_link_to t(".categories_label"), transaction_categories_path, icon: "tags" %>
+      <%= sidebar_link_to t(".tags_label"), tags_path, icon: "tags" %>
     </li>
     <li>
-      <%= sidebar_link_to t(".merchants_label"), transaction_merchants_path, icon: "store" %>
+      <%= sidebar_link_to t(".categories_label"), categories_path, icon: "tags" %>
     </li>
     <li>
-      <%= sidebar_link_to t(".rules_label"), transaction_rules_path, icon: "list-checks" %>
+      <%= sidebar_link_to t(".merchants_label"), merchants_path, icon: "store" %>
+    </li>
+    <li>
+      <%= sidebar_link_to t(".rules_label"), rules_transactions_path, icon: "list-checks" %>
+    </li>
+    <li>
+      <%= sidebar_link_to t(".imports_label"), imports_path, icon: "download" %>
     </li>
   </ul>
 </section>

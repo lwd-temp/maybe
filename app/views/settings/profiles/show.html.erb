@@ -8,7 +8,7 @@
       <%= form_with model: Current.user, url: settings_profile_path, html: {data: { controller: "profile-image-preview" }} do |form| %>
         <div class="flex items-center gap-4">
           <div class="relative flex justify-center items-center bg-gray-50 w-24 h-24 rounded-full border border-alpha-black-25">
-            <div data-profile-image-preview-target="imagePreview">
+            <div data-profile-image-preview-target="imagePreview" class="h-full w-full flex justify-center items-center">
               <% profile_image_attached = Current.user.profile_image.attached? %>
               <% if profile_image_attached %>
                 <div class="h-24 w-24">
@@ -26,7 +26,7 @@
           <div class="space-y-3">
             <p><%= t(".profile_image_type") %></p>
             <%= form.label :profile_image, t(".profile_image_choose"), class: "inline-block cursor-pointer px-3 py-2 bg-gray-50 text-gray-900 rounded-md text-sm font-medium" %>
-            <%= form.file_field :profile_image, accept: "wimage/png, image/jpeg, image/gif", class: "hidden px-3 py-2 bg-gray-50 text-gray-900 rounded-md text-sm font-medium", data: {profile_image_preview_target: "fileField", action: "change->profile-image-preview#preview"} %>
+            <%= form.file_field :profile_image, accept: "image/png, image/jpeg, image/gif", class: "hidden px-3 py-2 bg-gray-50 text-gray-900 rounded-md text-sm font-medium", data: {profile_image_preview_target: "fileField", action: "change->profile-image-preview#preview"} %>
             <%= form.hidden_field :delete_profile_image, value: false, data: {profile_image_preview_target: "deleteField"} %>
           </div>
         </div>
@@ -36,7 +36,7 @@
             <%= form.text_field :last_name, placeholder: "Last name", value: Current.user.last_name, label: true %>
           </div>
           <div class="flex justify-end mt-4">
-            <%= form.submit t(".save"), class: "bg-gray-900 text-white rounded-lg px-3 py-2" %>
+            <%= form.submit t(".save"), class: "bg-gray-900 hover:bg-gray-700 cursor-pointer text-white rounded-lg px-3 py-2" %>
           </div>
         </div>
       <% end %>

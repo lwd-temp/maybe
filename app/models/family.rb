@@ -1,22 +1,26 @@
 class Family < ApplicationRecord
   has_many :users, dependent: :destroy
+  has_many :tags, dependent: :destroy
   has_many :accounts, dependent: :destroy
+  has_many :institutions, dependent: :destroy
   has_many :transactions, through: :accounts
-  has_many :transaction_categories, dependent: :destroy, class_name: "Transaction::Category"
-  has_many :transaction_merchants, dependent: :destroy, class_name: "Transaction::Merchant"
+  has_many :entries, through: :accounts
+  has_many :imports, through: :accounts
+  has_many :categories, dependent: :destroy
+  has_many :merchants, dependent: :destroy
 
   def snapshot(period = Period.all)
     query = accounts.active.joins(:balances)
-      .where("account_balances.currency = ?", self.currency)
-      .select(
-        "account_balances.currency",
-        "account_balances.date",
-        "SUM(CASE WHEN accounts.classification = 'liability' THEN account_balances.balance ELSE 0 END) AS liabilities",
-        "SUM(CASE WHEN accounts.classification = 'asset' THEN account_balances.balance ELSE 0 END) AS assets",
-        "SUM(CASE WHEN accounts.classification = 'asset' THEN account_balances.balance WHEN accounts.classification = 'liability' THEN -account_balances.balance ELSE 0 END) AS net_worth",
-      )
-      .group("account_balances.date, account_balances.currency")
-      .order("account_balances.date")
+              .where("account_balances.currency = ?", self.currency)
+              .select(
+                "account_balances.currency",
+                "account_balances.date",
+                "SUM(CASE WHEN accounts.classification = 'liability' THEN account_balances.balance ELSE 0 END) AS liabilities",
+                "SUM(CASE WHEN accounts.classification = 'asset' THEN account_balances.balance ELSE 0 END) AS assets",
+                "SUM(CASE WHEN accounts.classification = 'asset' THEN account_balances.balance WHEN accounts.classification = 'liability' THEN -account_balances.balance ELSE 0 END) AS net_worth",
+              )
+              .group("account_balances.date, account_balances.currency")
+              .order("account_balances.date")
 
     query = query.where("account_balances.date >= ?", period.date_range.begin) if period.date_range.begin
     query = query.where("account_balances.date <= ?", period.date_range.end) if period.date_range.end
@@ -31,16 +35,18 @@ class Family < ApplicationRecord
 
   def snapshot_account_transactions
     period = Period.last_30_days
-    results = accounts.active.joins(:transactions)
-      .select(
-        "accounts.*",
-        "COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0) AS spending",
-        "COALESCE(SUM(-amount) FILTER (WHERE amount < 0), 0) AS income"
-      )
-      .where("transactions.date >= ?", period.date_range.begin)
-      .where("transactions.date <= ?", period.date_range.end)
-      .group("id")
-      .to_a
+    results = accounts.active.joins(:entries)
+                      .select(
+                        "accounts.*",
+                        "COALESCE(SUM(account_entries.amount) FILTER (WHERE account_entries.amount > 0), 0) AS spending",
+                        "COALESCE(SUM(-account_entries.amount) FILTER (WHERE account_entries.amount < 0), 0) AS income"
+                      )
+                      .where("account_entries.date >= ?", period.date_range.begin)
+                      .where("account_entries.date <= ?", period.date_range.end)
+                      .where("account_entries.marked_as_transfer = ?", false)
+                      .where("account_entries.entryable_type = ?", "Account::Transaction")
+                      .group("id")
+                      .to_a
 
     results.each do |r|
       r.define_singleton_method(:savings_rate) do
@@ -56,7 +62,8 @@ class Family < ApplicationRecord
   end
 
   def snapshot_transactions
-    rolling_totals = Transaction.daily_rolling_totals(transactions, period: Period.last_30_days, currency: self.currency)
+    candidate_entries = entries.account_transactions.without_transfers
+    rolling_totals = Account::Entry.daily_rolling_totals(candidate_entries, self.currency, period: Period.last_30_days)
 
     spending = []
     income = []
@@ -83,10 +90,6 @@ class Family < ApplicationRecord
       spending_series: TimeSeries.new(spending, favorable_direction: "down"),
       savings_rate_series: TimeSeries.new(savings, favorable_direction: "up")
     }
-  end
-
-  def effective_start_date
-    accounts.active.joins(:balances).minimum("account_balances.date") || Date.current
   end
 
   def net_worth

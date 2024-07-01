@@ -3,7 +3,7 @@ source "https://rubygems.org"
 ruby file: ".ruby-version"
 
 # Rails
-gem "rails", github: "rails/rails", branch: "main"
+gem "rails", github: "rails/rails", branch: "7-2-stable"
 
 # Drivers
 gem "pg", "~> 1.5"
@@ -25,9 +25,6 @@ gem "turbo-rails"
 # Background Jobs
 gem "good_job"
 
-# Search
-gem "ransack"
-
 # Error logging
 gem "stackprof"
 gem "sentry-ruby"
@@ -46,6 +43,7 @@ gem "octokit"
 gem "pagy"
 gem "rails-settings-cached"
 gem "tzinfo-data", platforms: %i[ windows jruby ]
+gem "csv"
 
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ]
@@ -70,4 +68,5 @@ group :test do
   gem "vcr"
   gem "webmock"
   gem "climate_control"
+  gem "simplecov", require: false
 end

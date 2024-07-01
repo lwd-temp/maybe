@@ -2,7 +2,7 @@
 <% type = Accountable.from_type(group.name) %>
 <% if group %>
   <details class="mb-1 text-sm group" data-controller="account-collapse" data-account-collapse-type-value="<%= type %>">
-    <summary class="flex gap-4 px-3 py-2 items-center w-full rounded-[10px] font-medium hover:bg-gray-100">
+    <summary class="flex gap-4 px-3 py-2 items-center w-full rounded-[10px] font-medium hover:bg-gray-100 cursor-pointer">
       <%= lucide_icon("chevron-down", class: "hidden group-open:block text-gray-500 w-5 h-5") %>
       <%= lucide_icon("chevron-right", class: "group-open:hidden text-gray-500 w-5 h-5") %>
       <div class="text-left"><%= type.model_name.human %></div>
@@ -27,7 +27,7 @@
           </div>
       </div>
     </summary>
-    <% group.children.each do |account_value_node| %>
+    <% group.children.sort_by(&:name).each do |account_value_node| %>
       <% account = account_value_node.original %>
       <%= link_to account_path(account), class: "flex items-center w-full gap-3 px-3 py-2 mb-1 hover:bg-gray-100 rounded-[10px]" do %>
         <%= image_tag account_logo_url(account), class: "w-6 h-6" %>
